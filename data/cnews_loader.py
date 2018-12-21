@@ -2,6 +2,7 @@
 import json
 import sys
 from collections import Counter
+import json
 
 import numpy as np
 import tensorflow.contrib.keras as kr
@@ -106,6 +107,15 @@ def to_words(content, words):
     return ''.join(words[x] for x in content)
 
 
+def to_categorical(y, num_classes=None):
+    n = len(y)
+    categorical = np.zeros((n, num_classes), dtype=np.float32)
+    for i in range(n):
+        for cat in y[i]:
+            categorical[i][cat] = 1
+    return categorical
+
+
 def process_file(filename, word_to_id, cat_to_id, max_length=600):
     """将文件转换为id表示"""
     contents, labels = read_file(filename)
@@ -117,7 +127,7 @@ def process_file(filename, word_to_id, cat_to_id, max_length=600):
 
     # 使用keras提供的pad_sequences来将文本pad为固定长度
     x_pad = kr.preprocessing.sequence.pad_sequences(data_id, max_length)
-    y_pad = kr.utils.to_categorical(label_id, num_classes=len(cat_to_id))  # 将标签转换为one-hot表示
+    y_pad = to_categorical(label_id, num_classes=len(cat_to_id))  # 将标签转换为one-hot表示
 
     return x_pad, y_pad
 

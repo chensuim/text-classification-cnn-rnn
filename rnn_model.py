@@ -9,7 +9,7 @@ class TRNNConfig(object):
     # 模型参数
     embedding_dim = 64      # 词向量维度
     seq_length = 300        # 序列长度
-    num_classes = 2000        # 类别数Z
+    num_classes = 2640        # 类别数Z
     vocab_size = 5000       # 词汇表达小
 
     num_layers= 2           # 隐藏层层数
@@ -19,8 +19,8 @@ class TRNNConfig(object):
     dropout_keep_prob = 0.8 # dropout保留比例
     learning_rate = 1e-3    # 学习率
 
-    batch_size = 128         # 每批训练大小
-    num_epochs = 10          # 总迭代轮次
+    batch_size = 32         # 每批训练大小
+    num_epochs = 1000          # 总迭代轮次
 
     print_per_batch = 100    # 每多少轮输出一次结果
     save_per_batch = 10      # 每多少轮存入tensorboard
@@ -67,7 +67,7 @@ class TextRNN(object):
             _outputs, _ = tf.nn.dynamic_rnn(cell=rnn_cell, inputs=embedding_inputs, dtype=tf.float32)
             last = _outputs[:, -1, :]  # 取最后一个时序输出作为结果
 
-        with tf.name_scope("score"):
+	with tf.name_scope("score"):
             # 全连接层，后面接dropout以及relu激活
             fc = tf.layers.dense(last, self.config.hidden_dim, name='fc1')
             fc = tf.contrib.layers.dropout(fc, self.keep_prob)
@@ -75,16 +75,24 @@ class TextRNN(object):
 
             # 分类器
             self.logits = tf.layers.dense(fc, self.config.num_classes, name='fc2')
-            self.y_pred_cls = tf.argmax(tf.nn.softmax(self.logits), 1)  # 预测类别
+            self.y_pred_cls = tf.nn.sigmoid(self.logits)
+            # self.y_pred_cls = tf.argmax(tf.nn.softmax(self.logits), 1)  # 预测类别
 
         with tf.name_scope("optimize"):
             # 损失函数，交叉熵
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y)
+            # cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y)
+            cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits=self.y_pred_cls, labels=self.input_y)
             self.loss = tf.reduce_mean(cross_entropy)
             # 优化器
             self.optim = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate).minimize(self.loss)
 
-        with tf.name_scope("accuracy"):
-            # 准确率
-            correct_pred = tf.equal(tf.argmax(self.input_y, 1), self.y_pred_cls)
-            self.acc = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+        with tf.name_scope("f1"):
+            # 召回率
+            y_pred = tf.round(self.y_pred_cls)
+            correct_pred = tf.reduce_sum(tf.reduce_sum(tf.multiply(y_pred, self.input_y), axis=0), axis=0)
+            should_pred = tf.reduce_sum(tf.reduce_sum(self.input_y, axis=0), axis=0)
+            predicted = tf.reduce_sum(tf.reduce_sum(y_pred, axis=0), axis=0)
+            theta = tf.constant(0.0001, tf.float32)
+            self.recall = correct_pred / (should_pred + theta)
+            self.precision = correct_pred / (predicted + theta)
+            self.f1 = 2 * self.recall * self.precision / (self.recall + self.precision + theta)
