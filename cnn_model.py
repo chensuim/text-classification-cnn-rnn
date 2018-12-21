@@ -8,7 +8,7 @@ class TCNNConfig(object):
 
     embedding_dim = 64  # 词向量维度
     seq_length = 600  # 序列长度
-    num_classes = 10  # 类别数
+    num_classes = 4721 # 类别数
     num_filters = 256  # 卷积核数目
     kernel_size = 5  # 卷积核尺寸
     vocab_size = 5000  # 词汇表达小
@@ -59,11 +59,13 @@ class TextCNN(object):
 
             # 分类器
             self.logits = tf.layers.dense(fc, self.config.num_classes, name='fc2')
-            self.y_pred_cls = tf.argmax(tf.nn.softmax(self.logits), 1)  # 预测类别
+            self.y_pred_cls = tf.nn.sigmoid(self.logits)
+            # self.y_pred_cls = tf.argmax(tf.nn.softmax(self.logits), 1)  # 预测类别
 
         with tf.name_scope("optimize"):
             # 损失函数，交叉熵
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y)
+            # cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y)
+            cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(logits=self.y_pred_cls, labels=self.input_y)
             self.loss = tf.reduce_mean(cross_entropy)
             # 优化器
             self.optim = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate).minimize(self.loss)
@@ -72,3 +74,14 @@ class TextCNN(object):
             # 准确率
             correct_pred = tf.equal(tf.argmax(self.input_y, 1), self.y_pred_cls)
             self.acc = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+        with tf.name_scope("f1"):
+            # 召回率
+            y_pred = tf.round(self.y_pred_cls)
+            correct_pred = tf.reduce_sum(tf.reduce_sum(tf.multiply(y_pred, self.input_y), axis=0), axis=0)
+            should_pred = tf.reduce_sum(tf.reduce_sum(self.input_y, axis=0), axis=0)
+            predicted = tf.reduce_sum(tf.reduce_sum(y_pred, axis=0), axis=0)
+            theta = tf.constant(0.0001, tf.float32)
+            self.recall = correct_pred / (should_pred + theta)
+            self.precision = correct_pred / (predicted + theta)
+            self.f1 = 2 * self.recall * self.precision / (self.recall + self.precision + theta)

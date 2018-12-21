@@ -1,5 +1,5 @@
 # coding: utf-8
-
+import json
 import sys
 from collections import Counter
 
@@ -46,10 +46,18 @@ def read_file(filename):
     with open_file(filename) as f:
         for line in f:
             try:
-                label, content = line.strip().split('\t')
-                if content:
-                    contents.append(list(native_content(content)))
-                    labels.append(native_content(label))
+                tags = line.strip().split()
+                label = list()
+                text = list()
+                for tag in tags:
+                    if tag.startswith('__label__'):
+                        label.append(native_content(tag))
+                    else:
+                        text.append(native_content(tag))
+                if text:
+                    #contents.append(list(native_content(content)))
+                    contents.append(text)
+                    labels.append(label)
             except:
                 pass
     return contents, labels
@@ -83,7 +91,8 @@ def read_vocab(vocab_dir):
 
 def read_category():
     """读取分类目录，固定"""
-    categories = ['体育', '财经', '房产', '家居', '教育', '科技', '时尚', '时政', '游戏', '娱乐']
+    with open("data/ks.txt", "r") as f:
+        categories = json.load(f)
 
     categories = [native_content(x) for x in categories]
 
@@ -104,7 +113,7 @@ def process_file(filename, word_to_id, cat_to_id, max_length=600):
     data_id, label_id = [], []
     for i in range(len(contents)):
         data_id.append([word_to_id[x] for x in contents[i] if x in word_to_id])
-        label_id.append(cat_to_id[labels[i]])
+        label_id.append([cat_to_id[x] for x in labels[i]])
 
     # 使用keras提供的pad_sequences来将文本pad为固定长度
     x_pad = kr.preprocessing.sequence.pad_sequences(data_id, max_length)
