@@ -15,10 +15,11 @@ from sklearn import metrics
 from cnn_model import TCNNConfig, TextCNN
 from data.cnews_loader import read_vocab, read_category, batch_iter, process_file, build_vocab
 base_dir = 'data/listen'
-train_dir = os.path.join(base_dir, 'listen_train')
-test_dir = os.path.join(base_dir, 'listen_test')
-val_dir = os.path.join(base_dir, 'listen_val')
+train_dir = os.path.join(base_dir, 'train_listen_fast')
+test_dir = os.path.join(base_dir, 'test_listen_fast')
+val_dir = os.path.join(base_dir, 'val_listen_fast')
 vocab_dir = os.path.join(base_dir, 'vocab.txt')
+vocab_vec_dir = os.path.join(base_dir, 'vocab_vec.txt')
 '''
 base_dir = 'data/cnews'
 train_dir = os.path.join(base_dir, 'cnews.train.txt')
@@ -104,7 +105,7 @@ def train():
     total_batch = 0  # 总批次
     best_f1_val = 0.0  # 最佳验证集准确率
     last_improved = 0  # 记录上一次提升批次
-    require_improvement = 1000  # 如果超过1000轮未提升，提前结束训练
+    require_improvement = 3000  # 如果超过1000轮未提升，提前结束训练
 
     flag = False
     for epoch in range(config.num_epochs):
@@ -201,10 +202,12 @@ if __name__ == '__main__':
     config = TCNNConfig()
     if not os.path.exists(vocab_dir):  # 如果不存在词汇表，重建
         build_vocab(train_dir, vocab_dir, config.vocab_size)
+        print('vocab rebuilt')
+	raise Exception()
     categories, cat_to_id = read_category()
-    words, word_to_id = read_vocab(vocab_dir)
+    words, word_to_id, word_to_vec = read_vocab(vocab_vec_dir)
     config.vocab_size = len(words)
-    model = TextCNN(config)
+    model = TextCNN(config, word_to_vec, word_to_id)
 
     if sys.argv[1] == 'train':
         train()

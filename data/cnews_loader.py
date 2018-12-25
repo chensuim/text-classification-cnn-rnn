@@ -6,6 +6,8 @@ import json
 
 import numpy as np
 import tensorflow.contrib.keras as kr
+from gensim.models import KeyedVectors
+EMBEDDING_FILE = '/root/shen-sz/google300/GoogleNews-vectors-negative300.bin'
 
 if sys.version_info[0] > 2:
     is_py3 = True
@@ -83,11 +85,27 @@ def build_vocab(train_dir, vocab_dir, vocab_size=5000):
 def read_vocab(vocab_dir):
     """读取词汇表"""
     # words = open_file(vocab_dir).read().strip().split('\n')
+    words = list()
+    vecs = list()
     with open_file(vocab_dir) as fp:
         # 如果是py2 则每个值都转化为unicode
-        words = [native_content(_.strip()) for _ in fp.readlines()]
+        word_vecs = fp.readlines()
+        for word_vec in word_vecs:
+            t = word_vec.split()
+            word = native_content(t[0])
+            vec = np.array([float(x) for x in t[1:]])
+            words.append(word)
+            vecs.append(vec)
+    word_to_vec = dict(zip(words, vecs))
     word_to_id = dict(zip(words, range(len(words))))
-    return words, word_to_id
+    return words, word_to_id, word_to_vec
+    #"""读取词汇表"""
+    ## words = open_file(vocab_dir).read().strip().split('\n')
+    #with open_file(vocab_dir) as fp:
+    #    # 如果是py2 则每个值都转化为unicode
+    #    words = [native_content(_.strip()) for _ in fp.readlines()]
+    #word_to_id = dict(zip(words, range(len(words))))
+    #return words, word_to_id
 
 
 def read_category():

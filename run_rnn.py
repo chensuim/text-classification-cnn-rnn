@@ -13,9 +13,9 @@ from sklearn import metrics
 from rnn_model import TRNNConfig, TextRNN
 from data.cnews_loader import read_vocab, read_category, batch_iter, process_file, build_vocab
 base_dir = 'data/listen'
-train_dir = os.path.join(base_dir, 'listen_train')
-test_dir = os.path.join(base_dir, 'listen_test')
-val_dir = os.path.join(base_dir, 'listen_val')
+train_dir = os.path.join(base_dir, 'train_listen_fast')
+test_dir = os.path.join(base_dir, 'test_listen_fast')
+val_dir = os.path.join(base_dir, 'val_listen_fast')
 vocab_dir = os.path.join(base_dir, 'vocab.txt')
 """
 base_dir = 'data/cnews'
@@ -68,7 +68,7 @@ def evaluate(sess, x_, y_):
 def train():
     print("Configuring TensorBoard and Saver...")
     # 配置 Tensorboard，重新训练时，请将tensorboard文件夹删除，不然图会覆盖
-    tensorboard_dir = 'tensorboard/textcnn'
+    tensorboard_dir = 'tensorboard/textrnn'
     if not os.path.exists(tensorboard_dir):
         os.makedirs(tensorboard_dir)
 
