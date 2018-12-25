@@ -6,8 +6,14 @@ import json
 
 import numpy as np
 import tensorflow.contrib.keras as kr
-from gensim.models import KeyedVectors
-EMBEDDING_FILE = '/root/shen-sz/google300/GoogleNews-vectors-negative300.bin'
+from bert_serving.client import BertClient
+
+bc_client = BertClient(show_server_config=False)
+
+
+def bert_encode(text):
+    return bc_client.encode(text)
+
 
 if sys.version_info[0] > 2:
     is_py3 = True
@@ -147,6 +153,18 @@ def process_file(filename, word_to_id, cat_to_id, max_length=600):
     x_pad = kr.preprocessing.sequence.pad_sequences(data_id, max_length)
     y_pad = to_categorical(label_id, num_classes=len(cat_to_id))  # 将标签转换为one-hot表示
 
+    return x_pad, y_pad
+
+
+def process_file_with_bert(filename, cat_to_id, max_length=600):
+    contents, labels = read_file(filename)
+    x_pad, label_id = [], []
+    for i in range(len(contents)):
+        sent = contents[i]
+        label_id.append([cat_to_id[x] for x in labels[i]])
+        vec = bert_encode(sent)
+        x_pad.append(vec)
+    y_pad = to_categorical(label_id, num_classes=len(cat_to_id))  # 将标签转换为one-hot表示
     return x_pad, y_pad
 
 

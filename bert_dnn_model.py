@@ -4,15 +4,11 @@ import tensorflow as tf
 import numpy as np
 
 
-class TCNNConfig(object):
+class BetDNNConfig(object):
     """CNN配置参数"""
 
-    embedding_dim = 300  # 词向量维度
-    seq_length = 300  # 序列长度
     num_classes = 2640  # 类别数
-    num_filters = 128 * 32 # 卷积核数目
-    kernel_sizes = [2,4,7]  # 卷积核尺寸
-    vocab_size = 5000  # 词汇表达小
+    sent_vec_len = 768
 
     hidden_dim = 4096  # 全连接层神经元
     hidden_dim_2 = 4096  # 全连接层神经元
@@ -29,60 +25,25 @@ class TCNNConfig(object):
     save_per_batch = 10  # 每多少轮存入tensorboard
 
 
-class TextCNN(object):
+class TextBertDNN(object):
     """文本分类，CNN模型"""
 
-    def __init__(self, config, word2vec, word2id):
+    def __init__(self, config):
         self.config = config
-        embedding_matrix = np.zeros((self.config.vocab_size, self.config.embedding_dim))
-        for word in word2vec:
-            embedding_matrix[word2id[word]] = word2vec[word]
-            self.embedding_matrix = embedding_matrix
 
         # 三个待输入的数据
-        self.input_x = tf.placeholder(tf.int32, [None, self.config.seq_length], name='input_x')
+        self.input_x = tf.placeholder(tf.int32, [None, self.config.sent_vec_len], name='input_x')
         self.input_y = tf.placeholder(tf.float32, [None, self.config.num_classes], name='input_y')
         self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-        self.cnn()
+        self.dnn()
 
-    def cnn(self):
+    def dnn(self):
         """CNN模型"""
-        def lstm_cell():   # lstm核
-            return tf.contrib.rnn.BasicLSTMCell(self.config.hidden_dim, state_is_tuple=True)
-
-        def dropout():
-            cell = lstm_cell()
-            return tf.contrib.rnn.DropoutWrapper(cell, output_keep_prob=self.keep_prob)
         # 词向量映射
-        with tf.device('/cpu:0'):
-            embedding = tf.get_variable('embedding', [self.config.vocab_size, self.config.embedding_dim],
-                                        initializer=tf.constant_initializer(self.embedding_matrix), trainable=False
-                                        )
-            #embedding = tf.get_variable('embedding', [self.config.vocab_size, self.config.embedding_dim])
-            embedding_inputs = tf.nn.embedding_lookup(embedding, self.input_x)
-        pooled_outputs = []
-
-        for filter_size in self.config.kernel_sizes:
-            with tf.name_scope("conv-filter{0}".format(filter_size)):
-                conv = tf.layers.conv1d(embedding_inputs, self.config.num_filters, filter_size, name='conv_%s' % filter_size)
-                pooled = tf.reduce_max(conv, reduction_indices=[1], name='pooled_%s' % filter_size)
-
-            pooled_outputs.append(pooled)
-
-        # Combine all the pooled features
-        num_filters_total = self.config.num_filters * len(self.config.kernel_sizes)
-        pool = tf.concat(pooled_outputs, axis=1)
-        pool_flat = tf.reshape(pool, shape=[-1, num_filters_total])
-       # with tf.name_scope("cnn"):
-       #     # CNN layer
-       #     conv = tf.layers.conv1d(embedding_inputs, self.config.num_filters, self.config.kernel_size, name='conv')
-       #     # global max pooling layer
-       #     gmp = tf.reduce_max(conv, reduction_indices=[1], name='gmp')
-
         with tf.name_scope("score"):
             # 全连接层，后面接dropout以及relu激活
-            fc = tf.layers.dense(pool_flat, self.config.hidden_dim, name='fc1')
+            fc = tf.layers.dense(self.input_x, self.config.hidden_dim, name='fc1')
             fc = tf.contrib.layers.dropout(fc, self.keep_prob)
             fc = tf.nn.relu(fc)
             fc2 = tf.layers.dense(fc, self.config.hidden_dim_2, name='fc2')
