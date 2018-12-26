@@ -8,6 +8,7 @@ class BetDNNConfig(object):
     """CNN配置参数"""
 
     num_classes = 2640  # 类别数
+    seq_length = 300
     sent_vec_len = 768
 
     hidden_dim = 4096  # 全连接层神经元
@@ -32,7 +33,7 @@ class TextBertDNN(object):
         self.config = config
 
         # 三个待输入的数据
-        self.input_x = tf.placeholder(tf.int32, [None, self.config.sent_vec_len], name='input_x')
+        self.input_x = tf.placeholder(tf.float32, [None, self.config.sent_vec_len], name='input_x')
         self.input_y = tf.placeholder(tf.float32, [None, self.config.num_classes], name='input_y')
         self.keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
@@ -61,7 +62,7 @@ class TextBertDNN(object):
         with tf.name_scope("optimize"):
             # 损失函数，交叉熵
             # cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.input_y)
-            cross_entropy = tf.losses.sigmoid_cross_entropy(logits=self.logits, multi_class_labels=self.input_y, weights=3)
+            cross_entropy = tf.losses.sigmoid_cross_entropy(logits=self.logits, multi_class_labels=self.input_y, weights=10)
             #self.loss = tf.reduce_mean(cross_entropy)
             self.loss = (cross_entropy)
             # 优化器

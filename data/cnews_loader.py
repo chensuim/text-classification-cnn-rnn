@@ -6,13 +6,13 @@ import json
 
 import numpy as np
 import tensorflow.contrib.keras as kr
-from bert_serving.client import BertClient
-
-bc_client = BertClient(show_server_config=False)
+#from bert_serving.client import BertClient
+#bc_client = BertClient(show_server_config=False)
 
 
 def bert_encode(text):
-    return bc_client.encode(text)
+    #return bc_client.encode([text])[0]
+    return
 
 
 if sys.version_info[0] > 2:
@@ -158,14 +158,14 @@ def process_file(filename, word_to_id, cat_to_id, max_length=600):
 
 def process_file_with_bert(filename, cat_to_id, max_length=600):
     contents, labels = read_file(filename)
-    x_pad, label_id = [], []
+    sents, label_id = [], []
     for i in range(len(contents)):
-        sent = contents[i]
+        sent = ' '.join(contents[i])
         label_id.append([cat_to_id[x] for x in labels[i]])
-        vec = bert_encode(sent)
-        x_pad.append(vec)
+        sents.append(sent)
+    x_pad = np.array(range(len(contents)))
     y_pad = to_categorical(label_id, num_classes=len(cat_to_id))  # 将标签转换为one-hot表示
-    return x_pad, y_pad
+    return x_pad, y_pad, sents
 
 
 def batch_iter(x, y, batch_size=64):
@@ -181,3 +181,24 @@ def batch_iter(x, y, batch_size=64):
         start_id = i * batch_size
         end_id = min((i + 1) * batch_size, data_len)
         yield x_shuffle[start_id:end_id], y_shuffle[start_id:end_id]
+
+
+def batch_iter_bert(x, y, sents, batch_size=64):
+    """生成批次数据"""
+    data_len = len(x)
+    num_batch = int((data_len - 1) / batch_size) + 1
+
+    indices = np.random.permutation(np.arange(data_len))
+    x_shuffle = x[indices]
+    y_shuffle = y[indices]
+
+    for i in range(num_batch):
+        start_id = i * batch_size
+        end_id = min((i + 1) * batch_size, data_len)
+        text = sents[i]
+	if not text:
+	    text = 'a'
+        yield [bert_encode(sents[i]) for i in x_shuffle[start_id:end_id]], y_shuffle[start_id:end_id]
+
+
+

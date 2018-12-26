@@ -13,7 +13,7 @@ import tensorflow as tf
 from sklearn import metrics
 
 from bert_dnn_model import BetDNNConfig, TextBertDNN
-from data.cnews_loader import read_vocab, read_category, batch_iter, process_file_with_bert
+from data.cnews_loader import read_vocab, read_category, batch_iter_bert, process_file_with_bert, bert_encode
 
 base_dir = 'data/listen'
 train_dir = os.path.join(base_dir, 'train_listen_fast')
@@ -42,10 +42,10 @@ def feed_data(x_batch, y_batch, keep_prob):
     return feed_dict
 
 
-def evaluate(sess, x_, y_):
+def evaluate(sess, x_, y_, sent):
     """评估在某一数据上的准确率和损失"""
     data_len = len(x_)
-    batch_eval = batch_iter(x_, y_, 128)
+    batch_eval = batch_iter_bert(x_, y_, sent, 128)
     total_loss = 0.0
     total_recall = 0.0
     total_precision = 0.0
@@ -84,8 +84,8 @@ def train():
     print("Loading training and validation data...")
     # 载入训练集与验证集
     start_time = time.time()
-    x_train, y_train = process_file_with_bert(train_dir, cat_to_id, config.seq_length)
-    x_val, y_val = process_file_with_bert(val_dir, cat_to_id, config.seq_length)
+    x_train, y_train, sent_train = process_file_with_bert(train_dir, cat_to_id, config.seq_length)
+    x_val, y_val, sent_val = process_file_with_bert(val_dir, cat_to_id, config.seq_length)
     time_dif = get_time_dif(start_time)
     print("Time usage:", time_dif)
 
@@ -104,7 +104,7 @@ def train():
     flag = False
     for epoch in range(config.num_epochs):
         print('Epoch:', epoch + 1)
-        batch_train = batch_iter(x_train, y_train, config.batch_size)
+        batch_train = batch_iter_bert(x_train, y_train, sent_train, config.batch_size)
         for x_batch, y_batch in batch_train:
             feed_dict = feed_data(x_batch, y_batch, config.dropout_keep_prob)
 
@@ -117,7 +117,7 @@ def train():
                 # 每多少轮次输出在训练集和验证集上的性能
                 feed_dict[model.keep_prob] = 1.0
                 loss_train, recall_train, precision_train, f1_train = session.run([model.loss, model.recall, model.precision, model.f1], feed_dict=feed_dict)
-                loss_val, recall_val, precision_val, f1_val = evaluate(session, x_val, y_val)  # todo
+                loss_val, recall_val, precision_val, f1_val = evaluate(session, x_val, y_val, sent_val)  # todo
 
                 if f1_val > best_f1_val:
                     # 保存最好结果
@@ -148,7 +148,7 @@ def train():
 def test():
     print("Loading test data...")
     start_time = time.time()
-    x_test, y_test = process_file_with_bert(test_dir, cat_to_id, config.seq_length)
+    x_test, y_test, sents = process_file_with_bert(test_dir, cat_to_id, config.seq_length)
 
     session = tf.Session()
     session.run(tf.global_variables_initializer())
@@ -170,7 +170,7 @@ def test():
         start_id = i * batch_size
         end_id = min((i + 1) * batch_size, data_len)
         feed_dict = {
-            model.input_x: x_test[start_id:end_id],
+            model.input_x: [bert_encode(sents[i]) for i in x_test[start_id:end_id]],
             model.keep_prob: 1.0
         }
         y_pred_cls[start_id:end_id] = session.run(model.y_pred_cls, feed_dict=feed_dict)
